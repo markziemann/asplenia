@@ -1,0 +1,91 @@
+---
+title: "AspleniaDataExploration"
+format: html
+editor: visual
+---
+
+## Introduction
+
+Here we will explore the asplenia data.
+
+```{r}
+#| label: load-packages
+library("readxl")
+```
+
+## Load data
+
+Using ReadXL to read from Excel spreadsheet.
+
+There are 3095 rows and 823 columns.
+That's a lot of data.
+
+```{r}
+#| label: load-data
+x <- read_xlsx("Khoury_Clean_Asplenia_COVID study_18102023.xlsx")
+dim(x)
+```
+
+
+## Look at some simple data visualisation
+
+### Gender
+
+Here we will do a simple analysis of the gender composition of this group.
+
+```{r}
+#| label: gender composition
+
+par(mar=c(3,15,2,1))
+vals <- table(x$`What is your gender?`)
+vals <- vals[order(vals)]
+barplot(vals,xlim=c(0,2000),main="gender breakdown",xlab="no. participants",cex.names=0.8,las=1,horiz = TRUE)
+text(vals+150,((1:length(vals)-0.4)*1.2),labels = vals)
+
+```
+
+## Asplenia in gender groups
+
+Now we will look at the spleen status in these gender groups.
+
+```{r}
+#| label: gender balance by asplenia
+
+par(mar=c(3,15,25,1))
+
+woman <- subset(x,`What is your gender?`=="Woman")
+man <- subset(x,`What is your gender?`=="Man")
+womanvals <- table(woman$`Have you ever been diagnosed with a spleen that doesn't work OR had it surgically removed?`)
+womanvals <- womanvals[order(womanvals)]
+names(womanvals) <- paste("(W)",names(womanvals))
+manvals <- table(man$`Have you ever been diagnosed with a spleen that doesn't work OR had it surgically removed?`)
+manvals <- manvals[order(manvals)]
+names(manvals) <- paste("(M)",names(manvals))
+catnames <- names(table(x$`Have you ever been diagnosed with a spleen that doesn't work OR had it surgically removed?`))
+
+vals <- cbind("men"=manvals,"women"=womanvals)
+par(mar=c(5,5,5,1))
+barplot(vals,horiz = TRUE,las=1,main="spleen status by gender",xlab="no. participants",col=c("white","lightgray","darkgray"))
+legend("right",legend=catnames,fill = c("white","lightgray","darkgray"),title="spleen status")
+text(c(15,70,700,40,160,800),1.2*(c(0.9,1.1,1,1.9,2.1,2)-0.4),labels = vals,col="black",cex=1)
+
+pc <- cbind("man"=manvals/sum(manvals)*100,"woman"=womanvals/sum(womanvals)*100)
+barplot(pc,horiz = TRUE,las=1,main="spleen status by gender",xlab="proportion participants (%)",col = c("white","lightgray","darkgray","white","lightgray","darkgray"))
+legend("right",legend=catnames,fill = c("white","lightgray","darkgray"),title="spleen status")
+pcr <- signif(pc,digits = 2)
+text(c(1.5,6,45,2.5,10,45),1.2*(c(0.9,1.1,1,1.9,2.1,2)-0.4),labels = pcr,col="black",cex=1)
+
+#plot(0,type='n',axes=FALSE,ann=FALSE)
+
+legend("right",legend=catnames,fill = c("white","lightgray","darkgray"),title="spleen status")
+
+```
+
+## Session information
+
+```{r}
+#| label: session
+
+sessionInfo()
+
+```
