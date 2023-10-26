@@ -1,12 +1,16 @@
 ---
 title: "AspleniaDataExploration"
-format: html
+format:
+  html:
+    embed-resources: true
 editor: visual
 ---
 
 ## Introduction
 
 Here we will explore the asplenia data.
+
+Source code: https://github.com/markziemann/asplenia
 
 ```{r}
 #| label: load-packages
