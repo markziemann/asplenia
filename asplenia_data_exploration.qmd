@@ -10,26 +10,31 @@ editor: visual
 
 Here we will explore the asplenia data.
 
+The goal is to make a UMAP chart of the data. It will be compared to PCA and t-SNE projections.
+
 Source code: https://github.com/markziemann/asplenia
 
 ```{r}
 #| label: load-packages
 library("readxl")
+library("tsne")
+library("umap")
+library("plotly")
+library("gplots")
+
 ```
 
 ## Load data
 
 Using ReadXL to read from Excel spreadsheet.
 
-There are 3095 rows and 823 columns.
-That's a lot of data.
+There are 3095 rows and 823 columns. That's a lot of data.
 
 ```{r}
 #| label: load-data
 x <- read_xlsx("Khoury_Clean_Asplenia_COVID study_18102023.xlsx")
 dim(x)
 ```
-
 
 ## Look at some simple data visualisation
 
@@ -82,6 +87,181 @@ text(c(1.5,6,45,2.5,10,45),1.2*(c(0.9,1.1,1,1.9,2.1,2)-0.4),labels = pcr,col="bl
 #plot(0,type='n',axes=FALSE,ann=FALSE)
 
 legend("right",legend=catnames,fill = c("white","lightgray","darkgray"),title="spleen status")
+
+```
+
+## PCA
+
+Need to check for NA values. Then convert responses to factors and then to numerical values.
+
+```{r}
+#| label: pca
+#| fig-height: 7
+#| fig-width: 7
+x2 <- as.data.frame(x)
+rownames(x2) <- x2$`Participant ID`
+x2 <- x2[,-c(1,2)]
+x2[1:4,1:5]
+hist(apply(x2,1,function(y) { length(which(is.na(y))) } ),main="NAs per row",xlab="NA count")
+hist(apply(x2,2,function(y) { length(which(is.na(y))) } ),main="NAs per column",xlab="NA count")
+x2f <- x2[,which (apply(x2,2,function(y) { length(which(is.na(y))) } ) < 50 )]
+dim(x2)
+dim(x2f)
+x2fn <- apply(x2f,2, function(j) { as.numeric(factor(j))} )
+rownames(x2fn) <- rownames(x2)
+
+mds <- cmdscale(dist(x2fn))
+plot(mds, xlab="Coordinate 1", ylab="Coordinate 2", type = "n",main="PCA") 
+text(mds, labels=rownames(x2fn) ) 
+
+```
+
+## t-SNE
+
+```{r}
+#| label: tsne
+#| fig-height: 7
+#| fig-width: 7
+
+#mytsne <- tsne(mtcars)
+#plot(mytsne,pch=19,col="gray",cex=2)
+#text(mytsne,labels = rownames(mtcars))
+
+mytsne <- tsne(x2fn)
+plot(mytsne,pch=1,cex=0.5,xlab="t-SNE1",ylab="t-SNE2",main="t-SNE")
+grid()
+#text(mytsne,labels = rownames(x2fn))
+
+```
+
+## UMAP
+
+First do a UMAP, then label groups
+
+```{r}
+#| label: umaptest
+#| fig-height: 7
+#| fig-width: 7
+
+x2fn.umap <- umap(x2fn,preserve.seed = 100)
+str(x2fn.umap)
+par(mar = c(5.1, 4.1, 4.1, 2.1) )
+plot(x2fn.umap$layout,cex=0.5,xlab="UMAP1",ylab="UMAP2",main="UMAP") ;grid()
+
+xco <- c(-17, 10, 7, 0,-7,-4.5,-2)
+yco <- c( 11, 17,-1,-6,-4, 1, 6)
+labs <- c("A","B","C","D","E","F","G")
+text(xco,yco,labels=labs,col="red")
+
+rect(-18.5,7,-15,12,border = "red") #A
+rect(9,16,11,19.5,border = "red") #B
+rect(3.5,-9,9.5,0,border = "red") #C
+rect(-1,-9,1,-5,border = "red") #D
+rect(-7.5,-6,-3,-3,border = "red") #E
+rect(-5,-2.5,-1.5,2,border = "red") #F
+rect(-2.5,3.5,0,7,border = "red") #G
+
+```
+
+Understand UMAP clustering.
+
+```{r}
+#| label: umapclustering
+#| fig-height: 7
+#| fig-width: 7
+
+head(x2fn.umap$layout)
+
+A <- rownames(x2fn.umap$layout[which(x2fn.umap$layout[,1] < -15),])
+B <- rownames(x2fn.umap$layout[which(x2fn.umap$layout[,2] > 15),])
+C <- rownames(x2fn.umap$layout[which(x2fn.umap$layout[,1] > 3.5  & x2fn.umap$layout[,2] < 0),])
+D <- rownames(x2fn.umap$layout[which(x2fn.umap$layout[,1] > -1  & x2fn.umap$layout[,1] < 1  & x2fn.umap$layout[,2] < -5),])
+E <- rownames(x2fn.umap$layout[which(x2fn.umap$layout[,1] < -3  & x2fn.umap$layout[,2] < -3),])
+F <- rownames(x2fn.umap$layout[which(x2fn.umap$layout[,1] > -1.5  & x2fn.umap$layout[,2] > -2.5  & x2fn.umap$layout[,2] < 2),])
+G <- rownames(x2fn.umap$layout[which(x2fn.umap$layout[,1] > -2.5  & x2fn.umap$layout[,1] > 0  & x2fn.umap$layout[,2] > 3.5),])
+
+groups <- list(A,B,C,D,E,F,G)
+len <- sapply(groups,length) 
+names(len) <- c("A","B","C","D","E","F","G")
+len
+
+```
+
+Distinguishing features of groups.
+
+```{r}
+#| label: distinguish1
+#| fig-height: 7
+#| fig-width: 7
+
+dfa <- x2fn[A,]
+dfb <- x2fn[B,]
+dfc <- x2fn[C,]
+dfd <- x2fn[D,]
+dfe <- x2fn[E,]
+dff <- x2fn[F,]
+dfg <- x2fn[G,]
+
+ma <- colMeans(dfa)
+mb <- colMeans(dfb)
+mc <- colMeans(dfc)
+md <- colMeans(dfd)
+me <- colMeans(dfe)
+mf <- colMeans(dff)
+mg <- colMeans(dfg)
+
+j <- data.frame(ma,mb,mc,md,me,mf,mg)
+head(j)
+
+```
+
+Selecting rows with some coefficient of variation.
+
+```{r}
+#| label: distinguish2
+#| fig-height: 7
+#| fig-width: 7
+
+cv <- function(x) { sd(x)/mean(x) }
+
+hist(apply(j,1,cv))
+
+j2 <- j[which(apply(j,1,cv)>0),]
+
+dim(j2)
+hist(apply(j2,1,cv))
+
+j3 <- j[which(apply(j,1,cv)>0.05),]
+
+dim(j3)
+hist(apply(j3,1,cv))
+
+```
+
+Plot the results.
+
+```{r}
+#| label: distinguish3
+#| fig-height: 7
+#| fig-width: 10
+
+
+rn <- gsub("TO THE PANDEMIC, did you have any of the below medical conditions\\?Please tick the one\\(s\\) that apply","symptoms:",rownames(j3))
+
+rn <- gsub("Which test did confirm your diagnosis\\?Please tick the one\\(s\\) that apply ","test:",rn)
+
+rn <- gsub("During the FIRST TWO WEEKS of your confirmed COVID diagnosis, did you experience any of the below COVID related-symptoms Please tick the one\\(s\\) that apply","symptoms:",rn)
+
+rn <- gsub("If YES, which treatment\\(s\\) did you receive\\? Please tick the one\\(s\\) that apply","teatment:",rn)
+
+rn
+
+rownames(j3) <- rn
+
+colnames(j3) <- c("A","B","C","D","E","F","G")
+
+heatmap.2(as.matrix(j3),scale="none", margins = c(3,25), trace="none", cexRow = 0.8, cexCol = 0.8,
+  colsep=0:ncol(j3), rowsep=0:nrow(j3), sepwidth=c(0.02, 0.02), sepcolor='black',srtCol=0)
 
 ```
 
