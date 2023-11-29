@@ -1,0 +1,260 @@
+---
+title: "AspleniaDataExploration"
+author: "Mark Ziemann"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    fig_width: 7
+    fig_height: 7
+theme: cosmo
+---
+
+## Introduction
+
+Here we will explore the asplenia data.
+
+The goal is to make a UMAP chart of the data. It will be compared to PCA and t-SNE projections.
+
+Source code: https://github.com/markziemann/asplenia
+
+```{r,library}
+
+library("readxl")
+library("tsne")
+library("umap")
+library("plotly")
+library("gplots")
+
+```
+
+## Load data
+
+Using ReadXL to read from Excel spreadsheet.
+
+There are 3095 rows and 823 columns. That's a lot of data.
+
+```{r,loaddata}
+
+x <- read_xlsx("Khoury_Clean_Asplenia_COVID study_18102023.xlsx")
+dim(x)
+
+```
+
+## Look at some simple data visualisation
+
+### Gender
+
+Here we will do a simple analysis of the gender composition of this group.
+
+```{r, gender_composition}
+
+par(mar=c(3,15,2,1))
+vals <- table(x$`What is your gender?`)
+vals <- vals[order(vals)]
+barplot(vals,xlim=c(0,2000),main="gender breakdown",xlab="no. participants",cex.names=0.8,las=1,horiz = TRUE)
+text(vals+150,((1:length(vals)-0.4)*1.2),labels = vals)
+
+```
+
+## Asplenia in gender groups
+
+Now we will look at the spleen status in these gender groups.
+
+```{r, gender_balance_by_asplenia}
+
+par(mar=c(3,15,25,1))
+
+woman <- subset(x,`What is your gender?`=="Woman")
+man <- subset(x,`What is your gender?`=="Man")
+womanvals <- table(woman$`Have you ever been diagnosed with a spleen that doesn't work OR had it surgically removed?`)
+womanvals <- womanvals[order(womanvals)]
+names(womanvals) <- paste("(W)",names(womanvals))
+manvals <- table(man$`Have you ever been diagnosed with a spleen that doesn't work OR had it surgically removed?`)
+manvals <- manvals[order(manvals)]
+names(manvals) <- paste("(M)",names(manvals))
+catnames <- names(table(x$`Have you ever been diagnosed with a spleen that doesn't work OR had it surgically removed?`))
+
+vals <- cbind("men"=manvals,"women"=womanvals)
+par(mar=c(5,5,5,1))
+barplot(vals,horiz = TRUE,las=1,main="spleen status by gender",xlab="no. participants",col=c("white","lightgray","darkgray"))
+legend("right",legend=catnames,fill = c("white","lightgray","darkgray"),title="spleen status")
+text(c(15,70,700,40,160,800),1.2*(c(0.9,1.1,1,1.9,2.1,2)-0.4),labels = vals,col="black",cex=1)
+
+pc <- cbind("man"=manvals/sum(manvals)*100,"woman"=womanvals/sum(womanvals)*100)
+barplot(pc,horiz = TRUE,las=1,main="spleen status by gender",xlab="proportion participants (%)",col = c("white","lightgray","darkgray","white","lightgray","darkgray"))
+legend("right",legend=catnames,fill = c("white","lightgray","darkgray"),title="spleen status")
+pcr <- signif(pc,digits = 2)
+text(c(1.5,6,45,2.5,10,45),1.2*(c(0.9,1.1,1,1.9,2.1,2)-0.4),labels = pcr,col="black",cex=1)
+
+#plot(0,type='n',axes=FALSE,ann=FALSE)
+
+legend("right",legend=catnames,fill = c("white","lightgray","darkgray"),title="spleen status")
+
+```
+
+## PCA
+
+Need to check for NA values. Then convert responses to factors and then to numerical values.
+
+```{r,pca}
+x2 <- as.data.frame(x)
+rownames(x2) <- x2$`Participant ID`
+x2 <- x2[,-c(1,2)]
+x2[1:4,1:5]
+hist(apply(x2,1,function(y) { length(which(is.na(y))) } ),main="NAs per row",xlab="NA count")
+hist(apply(x2,2,function(y) { length(which(is.na(y))) } ),main="NAs per column",xlab="NA count")
+x2f <- x2[,which (apply(x2,2,function(y) { length(which(is.na(y))) } ) < 50 )]
+dim(x2)
+dim(x2f)
+x2fn <- apply(x2f,2, function(j) { as.numeric(factor(j))} )
+rownames(x2fn) <- rownames(x2)
+
+mds <- cmdscale(dist(x2fn))
+plot(mds, xlab="Coordinate 1", ylab="Coordinate 2", type = "n",main="PCA") 
+text(mds, labels=rownames(x2fn) ) 
+
+```
+
+## t-SNE
+
+```{r,tsne,eval=FALSE}
+
+#mytsne <- tsne(mtcars)
+#plot(mytsne,pch=19,col="gray",cex=2)
+#text(mytsne,labels = rownames(mtcars))
+
+mytsne <- tsne(x2fn)
+plot(mytsne,pch=1,cex=0.5,xlab="t-SNE1",ylab="t-SNE2",main="t-SNE")
+grid()
+#text(mytsne,labels = rownames(x2fn))
+
+```
+
+## UMAP
+
+First do a UMAP, then label groups
+
+```{r,umap1}
+
+x2fn.umap <- umap(x2fn,preserve.seed = 100)
+str(x2fn.umap)
+par(mar = c(5.1, 4.1, 4.1, 2.1) )
+plot(x2fn.umap$layout,cex=0.5,xlab="UMAP1",ylab="UMAP2",main="UMAP") ;grid()
+
+xco <- c(-17, 10, 7, 0,-7,-4.5,-2)
+yco <- c( 11, 17,-1,-6,-4, 1, 6)
+labs <- c("A","B","C","D","E","F","G")
+text(xco,yco,labels=labs,col="red")
+
+rect(-18.5,7,-15,12,border = "red") #A
+rect(9,16,11,19.5,border = "red") #B
+rect(3.5,-9,9.5,0,border = "red") #C
+rect(-1,-9,1,-5,border = "red") #D
+rect(-7.5,-6,-3,-3,border = "red") #E
+rect(-5,-2.5,-1.5,2,border = "red") #F
+rect(-2.5,3.5,0,7,border = "red") #G
+
+```
+
+Understand UMAP clustering.
+
+```{r,umapcluster}
+
+head(x2fn.umap$layout)
+
+A <- rownames(x2fn.umap$layout[which(x2fn.umap$layout[,1] < -15),])
+B <- rownames(x2fn.umap$layout[which(x2fn.umap$layout[,2] > 15),])
+C <- rownames(x2fn.umap$layout[which(x2fn.umap$layout[,1] > 3.5  & x2fn.umap$layout[,2] < 0),])
+D <- rownames(x2fn.umap$layout[which(x2fn.umap$layout[,1] > -1  & x2fn.umap$layout[,1] < 1  & x2fn.umap$layout[,2] < -5),])
+E <- rownames(x2fn.umap$layout[which(x2fn.umap$layout[,1] < -3  & x2fn.umap$layout[,2] < -3),])
+F <- rownames(x2fn.umap$layout[which(x2fn.umap$layout[,1] > -1.5  & x2fn.umap$layout[,2] > -2.5  & x2fn.umap$layout[,2] < 2),])
+G <- rownames(x2fn.umap$layout[which(x2fn.umap$layout[,1] > -2.5  & x2fn.umap$layout[,1] > 0  & x2fn.umap$layout[,2] > 3.5),])
+
+groups <- list(A,B,C,D,E,F,G)
+len <- sapply(groups,length)
+names(len) <- c("A","B","C","D","E","F","G")
+len
+
+```
+
+Distinguishing features of groups.
+
+```{r,dist1}
+
+dfa <- x2fn[A,]
+dfb <- x2fn[B,]
+dfc <- x2fn[C,]
+dfd <- x2fn[D,]
+dfe <- x2fn[E,]
+dff <- x2fn[F,]
+dfg <- x2fn[G,]
+
+ma <- colMeans(dfa)
+mb <- colMeans(dfb)
+mc <- colMeans(dfc)
+md <- colMeans(dfd)
+me <- colMeans(dfe)
+mf <- colMeans(dff)
+mg <- colMeans(dfg)
+
+j <- data.frame(ma,mb,mc,md,me,mf,mg)
+head(j)
+
+```
+
+Selecting rows with some coefficient of variation.
+
+```{r,dist2}
+
+cv <- function(x) { sd(x)/mean(x) }
+
+hist(apply(j,1,cv))
+
+j2 <- j[which(apply(j,1,cv)>0),]
+
+dim(j2)
+hist(apply(j2,1,cv))
+
+j3 <- j[which(apply(j,1,cv)>0.03),]
+
+dim(j3)
+hist(apply(j3,1,cv))
+
+```
+
+Plot the results.
+
+```{r,dist3}
+
+rn <- gsub("TO THE PANDEMIC, did you have any of the below medical conditions\\?Please tick the one\\(s\\) that apply","symptoms:",rownames(j3))
+
+rn <- gsub("Which test did confirm your diagnosis\\?Please tick the one\\(s\\) that apply ","test:",rn)
+
+rn <- gsub("Which test did confirm your diagnosis\\? Pleas tick the one\\(s\\) that apply","test:",rn)
+
+rn <- gsub("During the FIRST TWO WEEKS of your confirmed COVID diagnosis, did you experience any of the below COVID related-symptoms Please tick the one\\(s\\) that apply","symptoms:",rn)
+
+rn <- gsub("If YES, which treatment\\(s\\) did you receive\\? Please tick the one\\(s\\) that apply","teatment:",rn)
+
+rn <- gsub("Did you experience any side effects from the treatment\\(s\\)\\? Please tick the one\\(s\\) that apply","side effects:",rn)
+
+rn
+
+rownames(j3) <- rn
+
+colnames(j3) <- c("A","B","C","D","E","F","G")
+
+heatmap.2(as.matrix(j3),scale="none", margins = c(3,25), trace="none", cexRow = 0.8, cexCol = 0.8,
+  colsep=0:ncol(j3), rowsep=0:nrow(j3), sepwidth=c(0.02, 0.02), sepcolor='black',srtCol=0)
+
+```
+
+## Session information
+
+```{r,session}
+
+sessionInfo()
+
+```
