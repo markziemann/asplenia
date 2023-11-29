@@ -229,12 +229,12 @@ hist(apply(j,1,cv))
 j2 <- j[which(apply(j,1,cv)>0),]
 
 dim(j2)
-hist(apply(j2,1,cv))
+hist(apply(j2,1,cv),breaks=30)
 
-j3 <- j[which(apply(j,1,cv)>0.05),]
+j3 <- j[which(apply(j,1,cv)>0.03),]
 
 dim(j3)
-hist(apply(j3,1,cv))
+hist(apply(j3,1,cv),breaks=30)
 
 ```
 
@@ -250,9 +250,13 @@ rn <- gsub("TO THE PANDEMIC, did you have any of the below medical conditions\\?
 
 rn <- gsub("Which test did confirm your diagnosis\\?Please tick the one\\(s\\) that apply ","test:",rn)
 
+rn <- gsub("Which test did confirm your diagnosis\\? Pleas tick the one\\(s\\) that apply","test:",rn)
+
 rn <- gsub("During the FIRST TWO WEEKS of your confirmed COVID diagnosis, did you experience any of the below COVID related-symptoms Please tick the one\\(s\\) that apply","symptoms:",rn)
 
 rn <- gsub("If YES, which treatment\\(s\\) did you receive\\? Please tick the one\\(s\\) that apply","teatment:",rn)
+
+rn <- gsub("Did you experience any side effects from the treatment\\(s\\)\\? Please tick the one\\(s\\) that apply","side effects:",rn)
 
 rn
 
